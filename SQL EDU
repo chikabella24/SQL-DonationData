@@ -1,0 +1,174 @@
+SELECT*
+FROM Donor_Data
+
+SELECT *
+FROM Donation_Data
+------------------------------ TO GET THE DISTINCT donation_frequency--------------------
+SELECT distinct donation_frequency
+FROM Donor_Data
+------HOW MUCH IS TOTAL DONATION------------------------------
+SELECT SUM(donation) AS TOTAL_DONATION
+FROM Donation_Data
+---------What is the total donation by gender?------------------
+SELECT  gender,sum(donation) AS total_donation
+FROM Donation_Data
+----------------Show the total donation and number of donations by gender?--------
+SELECT gender,COUNT(donation)AS  Number_of_donation, SUM(donation) AS TOTAL_DONATION
+FROM Donation_Data
+GROUP BY 1
+-----------Total donation made by frequency of donation---------------------
+SELECT DISTINCT  dn.donation_frequency,SUM(D.donation) AS Total_donation
+FROM Donation_Data D
+LEFT JOIN Donor_Data dn
+ON D.id = dn.id
+GROUP BY 1
+-------------Total donation and number of donation by Job field-----------------
+SELECT DISTINCT job_field,COUNT(donation)AS  Number_of_donation, SUM(donation) AS TOTAL_DONATION
+FROM Donation_Data
+GROUP BY 1
+----------Total donation and number of donations above $200----------------------------------
+WITH CTE_orders AS
+(SELECT  id,donation, first_name,COUNT(donation)AS  Number_of_donation, SUM(donation) AS TOTAL_DONATION
+FROM Donation_Data
+GROUP BY 1,2,3
+HAVING donation> 200)
+SELECT ID,first_name,Number_of_donation,donation
+FROM   CTE_orders
+GROUP BY donation,first_name,id,Number_of_donation
+ORDER BY donation DESC
+
+---------------------Total donation and number of donations below $200---------------------------------
+SELECT  id,COUNT(donation)AS  Number_of_donation, SUM(donation) AS TOTAL_DONATION
+FROM Donation_Data
+GROUP BY 1
+HAVING sum(donation) < 200
+
+------THE TOP 10 MALE WHO MADE DONATION OVER 250-----------
+SELECT *
+FROM Donation_Data
+WHERE gender ='Male' AND donation>250
+ORDER BY donation DESC
+LIMIT 10
+------THE TOP 10 FEMALE WHO MADE DONATION OVER 250----------
+
+SELECT *
+FROM Donation_Data
+WHERE gender ='Female' AND donation>250
+ORDER BY donation DESC
+LIMIT 10
+---------Which top 10 states contributes the highest donations-----------
+SELECT state,  SUM(donation)
+FROM Donation_Data
+GROUP BY 1 
+ORDER BY 2 DESC
+LIMIT 10 
+  --------RANK ====---TO GET SATAES RANKED BY TOTAL DONATION-----------
+ SELECT state,  SUM(donation) AS Total_donation,
+ RANK () OVER (ORDER BY  SUM(donation) DESC)
+ FROM Donation_Data
+ GROUP BY 1
+ -------TO GET THE STATE THAT HAS THE RANK 1 BY TOTAL _DONATION
+ SELECT state,Total_donation
+ FROM (
+ SELECT state,  SUM(donation) AS Total_donation,
+ RANK () OVER (ORDER BY  SUM(donation) DESC)
+ FROM Donation_Data
+ GROUP BY 1)a
+ WHERE RANK = 1
+ 
+------COMPARE EACH DONOR  DONATION WITH THE AVERAGE DONATION OF THE CORESPONDING DEPARTMENT------
+ 
+ SELECT job_field, first_name,donation,
+        AVG(donation) OVER(PARTITION BY job_field)
+FROM Donation_Data		
+------GETTING THE HIGHEST DONATION FOR EACH CUSTOMER --USING PARTITION-------
+SELECT CONCAT(first_name,',', last_name),donation,
+ROW_NUMBER () OVER(PARTITION  BY CONCAT(first_name,' ', last_name)ORDER BY 2 DESC) AS donation_rank
+FROM Donation_Data	
+ORDER BY 2 DESC
+
+------TO GET THE HIGHEST AND LOWEST DONATION----------
+SELECT MAX(donation) AS Maximum_donation,MIN(donation) AS Mininum_donation
+FROM Donation_Data
+------TO GET THE DONATION STATUS USING CASE -----------------
+SELECT CONCAT(first_name,',', last_name),donation,
+CASE WHEN donation <100  THEN 'Minimal'
+     WHEN donation <250 THEN 'Medium'
+     ELSE 'Large'
+	 END Donation_Status
+FROM Donation_Data	
+-----------SECOND METHOD USING BETWEEN--------------
+SELECT CONCAT(first_name,',', last_name),donation,
+CASE WHEN donation BETWEEN 0 AND 100  THEN 'Minimal'
+     WHEN donation BETWEEN 101 AND 250 THEN 'Medium'
+     ELSE 'Large'
+	 END Donation_Status
+FROM Donation_Data	
+--------USING CTE TO GET THE DONORS DETAILS THAT DONATED  OVER AVERAGE DONATION------
+WITH CTE_Donation_data AS
+(SELECT first_name,last_name,gender,job_field,donation,
+AVG(donation)OVER (PARTITION BY job_field) AS Avg_donation
+FROM   Donation_Data
+WHERE donation > 250
+)
+SELECT first_name,job_field,gender,ROUND(Avg_donation,2) AS avg_rounded
+FROM CTE_Donation_data
+GROUP BY 1,2,3,4
+
+--SECOND METHOD---------- CTE TO GET THE DONORS DETAILS THAT DONATED  OVER AVERAGE DONATION-----------
+WITH CTE_Avg_donation AS
+(SELECT CAST( AVG(donation)  AS INT) AS average_donation
+FROM  Donation_Data )
+SELECT * 
+FROM Donation_Data d, CTE_Avg_donation av
+WHERE d.donation >av.average_donation
+limit 10
+ 
+ -------GET THE FULLNAME OF THE DONORS WHO DIDNT GO TO UNIVERSITY AND DONT SPEAK A SECOND LANGUAGE-------
+ SELECT CONCAT(first_name,' ',last_name) AS full_name,dn.university,dn.second_language
+ FROM Donation_Data D
+ JOIN Donor_Data dn
+ ON D.id=dn.id
+ WHERE university ISNULL AND second_language ISNULL
+ 
+ -----RETURN ALL FIRST NAME ,LAST NAME THAT DRIVES A RED COLOUR FORD-------------------------------------------
+ SELECT D.first_name,D.last_name,dn.car,dn.favourite_colour
+ FROM Donation_Data D
+ JOIN Donor_Data dn
+ ON D.id=dn.id
+ WHERE dn.car='Ford' AND favourite_colour ='Red'
+ -------GET ALL THE FIRST NAME THAT STARTS WITH M--------
+ SELECT first_name,email,gender
+  FROM Donation_Data D
+  WHERE first_name LIKE 'M%'
+  ----GET THE FIRST NAME AND LAST NAME THAT ENDS WITH a AND y RESPECTIVELY-----
+   SELECT first_name, last_name,email,gender
+  FROM Donation_Data D
+  WHERE first_name LIKE '%a' and last_name LIKE '%y'
+------GETTING THE FIRST NAMES THAT APPEAR MORE THAN ONCE  
+  SELECT first_name,COUNT(*)
+  FROM Donation_Data 
+  GROUP BY 1
+  HAVING COUNT(*)>1
+  ------GETTING THE last NAMES THAT APPEAR MORE THAN ONCE 
+  
+   SELECT last_name,COUNT(*)
+  FROM Donation_Data 
+  GROUP BY 1
+  HAVING COUNT(*)>1
+ 
+ ----------------USING CASE TO GET THE BODY STRUCTURE OF THE DONORS----------
+ SELECT CONCAT(first_name,' ',last_name) AS full_name,shirt_size,gender,donation_frequency,donation,shirt_size,
+ CASE  shirt_size 
+ WHEN 'S'THEN 'Small'
+ WHEN 'XS'THEN 'Petite'
+ WHEN 'M' THEN 'Average '
+ WHEN 'L' THEN 'Large'
+ ELSE 'EXTRA Large'
+ END AS Body_Structure
+ FROM Donation_Data D
+ JOIN Donor_Data dn
+ ON D.id = dn.id,
+ COUNT(donation) 
+ GROUP BY 1,2,3,4
+ 
